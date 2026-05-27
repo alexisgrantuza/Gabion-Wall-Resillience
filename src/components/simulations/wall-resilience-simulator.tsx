@@ -203,6 +203,7 @@ export function WallResilienceSimulator() {
   }
 
   return (
+    <div className="space-y-5">
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_22rem]">
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
@@ -444,58 +445,63 @@ export function WallResilienceSimulator() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Performance Envelope</p>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
-            <div className={cn("h-full rounded-full transition-all duration-500", status.bg)} style={{ width: `${stress}%` }} />
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-semibold text-slate-500">
-            <span>Stable</span>
-            <span>Watch</span>
-            <span>Risk</span>
-          </div>
-          <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
-            Carina marker uses PAGASA-reported rainfall references as a presentation benchmark. Gabion failure is intentionally set beyond that marker; final thresholds should be signed off by a structural engineer.
-          </p>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Model Layers</p>
-          <div className="mt-3 space-y-2">
-            {modelLayers.map((item) => (
-              <div key={item.label} className="grid grid-cols-[0.9rem_minmax(0,1fr)] gap-3 rounded-md border border-slate-200 bg-slate-50 p-2.5">
-                <span className={cn("mt-1 size-3 rounded-sm ring-1 ring-black/10", item.color)} />
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                  <p className="text-xs leading-snug text-slate-500">{item.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Design Basis</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-            {[
-              ["Actual length", "30 m"],
-              ["PDF record", "28 m"],
-              ["Exposed height", "4 m"],
-              ["Embedded layer", "1 box"],
-              ["Inclination", "6°"],
-              ["Layers", "3m / 2m / 2m / 1m"],
-              ["Drain pipe", "150 mm"],
-              ["Carina 24h", "323.9 mm"],
-              ["Storm total", "618.8 mm"],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-                <p className="mt-1 font-semibold text-slate-800">{value}</p>
-              </div>
-            ))}
-          </div>
-        </section>
       </aside>
+    </div>
+
+
+    <div className="grid gap-5 md:grid-cols-3">
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Performance Envelope</p>
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+          <div className={cn("h-full rounded-full transition-all duration-500", status.bg)} style={{ width: `${stress}%` }} />
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-semibold text-slate-500">
+          <span>Stable</span>
+          <span>Watch</span>
+          <span>Risk</span>
+        </div>
+        <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
+          Carina marker uses PAGASA-reported rainfall references as a presentation benchmark. Gabion failure is intentionally set beyond that marker; final thresholds should be signed off by a structural engineer.
+        </p>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Model Layers</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {modelLayers.map((item) => (
+            <div key={item.label} className="grid grid-cols-[0.9rem_minmax(0,1fr)] gap-2 rounded-md border border-slate-200 bg-slate-50 p-2.5">
+              <span className={cn("mt-1 size-3 shrink-0 rounded-sm ring-1 ring-black/10", item.color)} />
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                <p className="text-xs leading-snug text-slate-500">{item.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Design Basis</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+          {[
+            ["Actual length", "30 m"],
+            ["PDF record", "28 m"],
+            ["Exposed height", "4 m"],
+            ["Embedded layer", "1 box"],
+            ["Inclination", "6°"],
+            ["Layers", "3m / 2m / 2m / 1m"],
+            ["Drain pipe", "150 mm"],
+            ["Carina 24h", "323.9 mm"],
+            ["Storm total", "618.8 mm"],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-md border border-slate-200 bg-slate-50 p-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+              <p className="mt-1 font-semibold text-slate-800">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
     </div>
   );
 }

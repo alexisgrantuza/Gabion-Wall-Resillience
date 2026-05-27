@@ -144,9 +144,247 @@ export function WallDisasterScene({
     scene.add(root);
     const matrix = new THREE.Matrix4();
 
+    // ── Procedural textures (no external assets) ──────────────────────────────
+    function makeCanvasTexture(
+      draw: (ctx: CanvasRenderingContext2D, size: number) => void,
+      size = 512,
+      repeatX = 1,
+      repeatY = 1,
+    ) {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d")!;
+      draw(ctx, size);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(repeatX, repeatY);
+      texture.anisotropy = 4;
+      disposables.push(texture);
+      return texture;
+    }
+
+    // Realistic cut-earth: dark organic topsoil grading into lighter subsoil,
+    // wavy strata bands, fine grain speckle, and embedded pebbles.
+    function drawSoil(ctx: CanvasRenderingContext2D, s: number, topBand: boolean) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, s);
+      if (topBand) {
+        gradient.addColorStop(0, "#34230f");
+        gradient.addColorStop(0.14, "#422c14");
+        gradient.addColorStop(0.45, "#5f3f1e");
+        gradient.addColorStop(1, "#7a5526");
+      } else {
+        gradient.addColorStop(0, "#5a3c1c");
+        gradient.addColorStop(0.5, "#6e4a22");
+        gradient.addColorStop(1, "#825b29");
+      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, s, s);
+
+      // Wavy horizontal strata
+      for (let i = 0; i < 9; i += 1) {
+        const y = (i + 0.5) * (s / 9);
+        const tone = i % 2 === 0 ? "rgba(40,26,12,0.34)" : "rgba(150,110,64,0.20)";
+        ctx.strokeStyle = tone;
+        ctx.lineWidth = 2 + Math.random() * 6;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let x = 0; x <= s; x += 24) {
+          ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 7 + (Math.random() - 0.5) * 5);
+        }
+        ctx.stroke();
+      }
+
+      // Fine grain speckle
+      for (let i = 0; i < 2600; i += 1) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const dark = Math.random() > 0.45;
+        ctx.fillStyle = dark
+          ? `rgba(28,18,8,${0.18 + Math.random() * 0.32})`
+          : `rgba(176,140,92,${0.12 + Math.random() * 0.26})`;
+        const r = 0.6 + Math.random() * 1.8;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Embedded pebbles with a soft highlight
+      for (let i = 0; i < 54; i += 1) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const rx = 3 + Math.random() * 9;
+        const ry = rx * (0.6 + Math.random() * 0.5);
+        const g = 110 + Math.floor(Math.random() * 60);
+        ctx.fillStyle = `rgb(${g},${g - 8},${g - 20})`;
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.beginPath();
+        ctx.ellipse(x - rx * 0.3, y - ry * 0.3, rx * 0.35, ry * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // A few thin roots near the organic top
+      if (topBand) {
+        ctx.strokeStyle = "rgba(30,20,10,0.4)";
+        ctx.lineWidth = 1.4;
+        for (let i = 0; i < 7; i += 1) {
+          const x = Math.random() * s;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          let cy = 0;
+          let cx = x;
+          while (cy < s * 0.4) {
+            cy += 16;
+            cx += (Math.random() - 0.5) * 26;
+            ctx.lineTo(cx, cy);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawGrass(ctx: CanvasRenderingContext2D, s: number) {
+      ctx.fillStyle = "#3f6e30";
+      ctx.fillRect(0, 0, s, s);
+      for (let i = 0; i < 5200; i += 1) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const len = 3 + Math.random() * 7;
+        const shade = 70 + Math.floor(Math.random() * 90);
+        ctx.strokeStyle = `rgb(${Math.floor(shade * 0.45)},${shade},${Math.floor(shade * 0.4)})`;
+        ctx.lineWidth = 0.8 + Math.random();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (Math.random() - 0.5) * 3, y - len);
+        ctx.stroke();
+      }
+    }
+
+    function drawConcrete(ctx: CanvasRenderingContext2D, s: number) {
+      ctx.fillStyle = "#b6babe";
+      ctx.fillRect(0, 0, s, s);
+      // Cement mottling
+      for (let i = 0; i < 1900; i += 1) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const dark = Math.random() > 0.5;
+        ctx.fillStyle = dark
+          ? `rgba(116,120,124,${0.1 + Math.random() * 0.26})`
+          : `rgba(222,224,227,${0.08 + Math.random() * 0.2})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 0.7 + Math.random() * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Exposed aggregate
+      for (let i = 0; i < 130; i += 1) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const r = 2 + Math.random() * 5;
+        const g = 132 + Math.floor(Math.random() * 70);
+        ctx.fillStyle = `rgb(${g},${g},${g + 4})`;
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * (0.7 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Hairline cracks
+      ctx.strokeStyle = "rgba(58,62,66,0.5)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 11; i += 1) {
+        let x = Math.random() * s;
+        let y = Math.random() * s;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        for (let k = 0; k < 6; k += 1) {
+          x += (Math.random() - 0.5) * 44;
+          y += (Math.random() - 0.5) * 44;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    const soilTexture = makeCanvasTexture((ctx, s) => drawSoil(ctx, s, true), 512, 6, 2);
+    const subsoilTexture = makeCanvasTexture((ctx, s) => drawSoil(ctx, s, false), 512, 4, 1);
+    const grassTexture = makeCanvasTexture(drawGrass, 512, 8, 6);
+
+    // ── Animated water surface (Gerstner-style flowing waves) ─────────────────
+    type WaterSurface = {
+      mesh: THREE.Mesh;
+      geometry: THREE.PlaneGeometry;
+      base: Float32Array;
+    };
+
+    function createWaterSurface(
+      width: number,
+      depth: number,
+      segX: number,
+      segZ: number,
+    ): WaterSurface {
+      const geometry = new THREE.PlaneGeometry(width, depth, segX, segZ);
+      const position = geometry.attributes.position as THREE.BufferAttribute;
+      const base = new Float32Array(position.array as Float32Array);
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0x2f8fc4,
+        transparent: true,
+        opacity: 0.82,
+        roughness: 0.05,
+        metalness: 0,
+        transmission: 0.6,
+        thickness: 0.8,
+        ior: 1.33,
+        clearcoat: 1,
+        clearcoatRoughness: 0.06,
+        attenuationColor: new THREE.Color(0x0b466a),
+        attenuationDistance: 1.1,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.renderOrder = 2;
+      disposables.push(geometry, material);
+      return { mesh, geometry, base };
+    }
+
+    // Directional sum-of-sines: waves travel along the surface so it reads as flow.
+    function updateWaterSurface(
+      surface: WaterSurface,
+      time: number,
+      amplitude: number,
+      flow: number,
+    ) {
+      const position = surface.geometry.attributes.position as THREE.BufferAttribute;
+      const base = surface.base;
+      for (let i = 0; i < position.count; i += 1) {
+        const x = base[i * 3];
+        const y = base[i * 3 + 1];
+        const wave =
+          Math.sin(x * 1.7 + time * (1.6 + flow * 1.4)) * 0.5 +
+          Math.sin((x * 0.9 + y * 1.6) - time * (1.1 + flow)) * 0.3 +
+          Math.sin((y * 2.3 - x * 0.6) + time * (2.4 + flow * 1.8)) * 0.2;
+        position.setZ(i, wave * amplitude);
+      }
+      position.needsUpdate = true;
+      surface.geometry.computeVertexNormals();
+    }
+
     // ── Materials ─────────────────────────────────────────────────────────────
-    const grassMaterial = new THREE.MeshStandardMaterial({ color: 0x4a7a3a, roughness: 0.92 });
-    const topsoilMaterial = new THREE.MeshStandardMaterial({ color: 0x5c4020, roughness: 0.96 });
+    const grassMaterial = new THREE.MeshStandardMaterial({
+      map: grassTexture,
+      color: 0x6f9a52,
+      roughness: 0.95,
+    });
+    const topsoilMaterial = new THREE.MeshStandardMaterial({
+      map: soilTexture,
+      bumpMap: soilTexture,
+      bumpScale: 0.04,
+      color: 0x9a7848,
+      roughness: 0.98,
+    });
     const aggregateMaterial = new THREE.MeshStandardMaterial({ color: 0x8c8878, roughness: 0.95 });
     const backfillMaterial = new THREE.MeshStandardMaterial({
       color: 0xb8c2cc,
@@ -162,11 +400,16 @@ export function WallDisasterScene({
       side: THREE.DoubleSide,
     });
     const waterMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x38bdf8,
+      color: 0x1f7aa8,
       transparent: true,
-      opacity: 0.34,
-      roughness: 0.12,
-      transmission: 0.12,
+      opacity: 0.42,
+      roughness: 0.08,
+      transmission: 0.35,
+      ior: 1.33,
+      thickness: 1.2,
+      attenuationColor: new THREE.Color(0x0a3a55),
+      attenuationDistance: 0.9,
+      depthWrite: false,
     });
     // Orange HDPE corrugated drain pipe
     const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0xb85818, roughness: 0.58, metalness: 0 });
@@ -176,16 +419,10 @@ export function WallDisasterScene({
       emissiveIntensity: 0.35,
       roughness: 0.25,
     });
-    const concreteFailMaterial = new THREE.MeshStandardMaterial({
-      color: 0x9ca3af,
-      roughness: 0.82,
-      transparent: true,
-      opacity: 0.82,
-    });
     disposables.push(
       grassMaterial, topsoilMaterial, aggregateMaterial,
       backfillMaterial, geotextileMaterial, waterMaterial,
-      pipeMaterial, pipeFlowMaterial, concreteFailMaterial,
+      pipeMaterial, pipeFlowMaterial,
     );
 
     // ── Ground terrain ────────────────────────────────────────────────────────
@@ -216,10 +453,13 @@ export function WallDisasterScene({
 
     // Excavation zone showing embedded layer
     const excavationMaterial = new THREE.MeshStandardMaterial({
-      color: 0x6b4820,
-      roughness: 0.96,
+      map: subsoilTexture,
+      bumpMap: subsoilTexture,
+      bumpScale: 0.03,
+      color: 0x8a6234,
+      roughness: 0.97,
       transparent: true,
-      opacity: 0.50,
+      opacity: 0.78,
       depthWrite: false,
     });
     const excavationGeometry = new THREE.BoxGeometry(wallLength + 0.9, buriedLayerDrop, 1.72);
@@ -246,11 +486,11 @@ export function WallDisasterScene({
 
     // ── Undisturbed native soil (retained earth) ──────────────────────────────
     const elevatedSoilMaterial = new THREE.MeshStandardMaterial({
-      color: 0x7c5828,
-      roughness: 0.94,
-      transparent: true,
-      opacity: 0.70,
-      depthWrite: false,
+      map: soilTexture,
+      bumpMap: soilTexture,
+      bumpScale: 0.05,
+      color: 0x8f6634,
+      roughness: 0.97,
     });
     const soilHeight = finishedGradeY + 4 * METER + 0.15;
     const elevatedSoilGeometry = new THREE.BoxGeometry(wallLength + 0.8, soilHeight, 1.8);
@@ -313,51 +553,119 @@ export function WallDisasterScene({
     scene.add(geotextile);
     disposables.push(geotextileGeometry);
 
-    // ── Concrete wall comparison (appears at high rain load) ──────────────────
+    // ── Concrete wall comparison (brittle — shatters into rock-like rubble) ───
     const concreteComparison = new THREE.Group();
-    concreteComparison.position.set(wallLength / 2 + 0.62, 0.78, 0.28);
+    concreteComparison.position.set(wallLength / 2 + 0.62, 0, 0.28);
     scene.add(concreteComparison);
 
-    const concretePanels: THREE.Mesh[] = [];
-    const concretePanelGeometry = new THREE.BoxGeometry(0.18, 1.35, 0.95);
-    const concreteCrackMaterial = new THREE.LineBasicMaterial({
-      color: 0x4b5563,
-      transparent: true,
-      opacity: 0.86,
+    const concreteTexture = makeCanvasTexture(drawConcrete, 512, 2, 2);
+    const concreteBlockMaterial = new THREE.MeshStandardMaterial({
+      map: concreteTexture,
+      bumpMap: concreteTexture,
+      bumpScale: 0.025,
+      color: 0xb6babe,
+      roughness: 0.96,
+      metalness: 0,
     });
-    for (let i = 0; i < 3; i += 1) {
-      const panel = new THREE.Mesh(concretePanelGeometry, concreteFailMaterial);
-      panel.position.set(0, i * 0.44, 0);
-      panel.castShadow = true;
-      panel.receiveShadow = true;
-      concreteComparison.add(panel);
-      concretePanels.push(panel);
+    disposables.push(concreteBlockMaterial);
 
-      for (let c = 0; c < 3; c += 1) {
-        const startY = -0.46 + c * 0.32 + Math.random() * 0.08;
-        const crackGeometry = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-0.093, startY, -0.28 + Math.random() * 0.28),
-          new THREE.Vector3(-0.104, startY + 0.16, -0.08 + Math.random() * 0.24),
-          new THREE.Vector3(-0.096, startY + 0.34, 0.12 + Math.random() * 0.24),
-        ]);
-        const crack = new THREE.Line(crackGeometry, concreteCrackMaterial);
-        panel.add(crack);
-        disposables.push(crackGeometry);
+    // Irregular rock/rubble geometry: a low icosahedron pushed around per vertex.
+    function makeRockGeometry(radius: number, seed: number) {
+      const geometry = new THREE.IcosahedronGeometry(radius, 1);
+      const position = geometry.attributes.position as THREE.BufferAttribute;
+      const v = new THREE.Vector3();
+      for (let i = 0; i < position.count; i += 1) {
+        v.fromBufferAttribute(position, i);
+        const n =
+          Math.sin(v.x * 9 + seed) * 0.5 +
+          Math.cos(v.y * 8 + seed * 1.3) * 0.3 +
+          Math.sin(v.z * 7 + seed * 0.7) * 0.2;
+        v.multiplyScalar(1 + n * 0.3);
+        position.setXYZ(i, v.x, v.y, v.z);
+      }
+      geometry.computeVertexNormals();
+      return geometry;
+    }
+
+    type ConcreteBlock = {
+      mesh: THREE.Mesh;
+      base: THREE.Vector3;
+      heap: THREE.Vector3;
+      tumble: THREE.Euler;
+      delay: number;
+    };
+    const concreteBlocks: ConcreteBlock[] = [];
+
+    const blkRows = 4;
+    const blkDeep = 3;
+    const blkW = 0.4;
+    const blkH = 0.36;
+    const blkD = 0.3;
+    const blkGap = 0.012;
+    const wallBaseGroundY = 0.18;
+    for (let r = 0; r < blkRows; r += 1) {
+      for (let d = 0; d < blkDeep; d += 1) {
+        const sx = 0.86 + Math.random() * 0.22;
+        const sy = 0.86 + Math.random() * 0.22;
+        const sz = 0.86 + Math.random() * 0.22;
+        const geom = new THREE.BoxGeometry(blkW * sx, blkH * sy, blkD * sz);
+        const block = new THREE.Mesh(geom, concreteBlockMaterial);
+        const base = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.04,
+          wallBaseGroundY + r * (blkH + blkGap),
+          -((blkDeep - 1) / 2) * (blkD + blkGap) + d * (blkD + blkGap),
+        );
+        block.position.copy(base);
+        block.castShadow = true;
+        block.receiveShadow = true;
+        concreteComparison.add(block);
+        // Upper blocks tumble out further (+z, toward the toe) and land lower.
+        const heap = new THREE.Vector3(
+          base.x + (Math.random() - 0.5) * 0.6,
+          0.09 + Math.random() * 0.1 + r * 0.015,
+          base.z + 0.5 + Math.random() * (0.85 + r * 0.32),
+        );
+        concreteBlocks.push({
+          mesh: block,
+          base,
+          heap,
+          tumble: new THREE.Euler(
+            (Math.random() - 0.3) * 3.0,
+            (Math.random() - 0.5) * 2.4,
+            (Math.random() - 0.5) * 3.0,
+          ),
+          delay: (r / blkRows) * 0.38 + Math.random() * 0.1,
+        });
+        disposables.push(geom);
       }
     }
-    disposables.push(concretePanelGeometry, concreteCrackMaterial);
 
-    const concreteFragmentGeometry = new THREE.BoxGeometry(0.16, 0.08, 0.18);
-    const concreteFragmentMaterial = new THREE.MeshStandardMaterial({ color: 0x8f969c, roughness: 0.9 });
-    const concreteFragments = new THREE.InstancedMesh(concreteFragmentGeometry, concreteFragmentMaterial, 42);
+    // Smaller shattered chunks scattered across the rubble field.
+    const concreteFragmentGeometry = makeRockGeometry(0.1, 3.1);
+    const concreteFragmentMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
+    const fragmentCount = 110;
+    const concreteFragments = new THREE.InstancedMesh(concreteFragmentGeometry, concreteFragmentMaterial, fragmentCount);
     concreteFragments.castShadow = true;
-    const concreteFragmentSeeds = Array.from({ length: 42 }, (_, index) => ({
-      x: wallLength / 2 + 0.2 + (index % 7) * 0.16 + Math.random() * 0.09,
+    concreteFragments.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(fragmentCount * 3), 3);
+    const fragmentGrays = [
+      new THREE.Color(0x9aa0a4),
+      new THREE.Color(0xb0b4b8),
+      new THREE.Color(0x868c90),
+      new THREE.Color(0xc2c5c8),
+      new THREE.Color(0x787e82),
+    ];
+    const concreteFragmentSeeds = Array.from({ length: fragmentCount }, (_, index) => ({
+      x: wallLength / 2 + 0.32 + (Math.random() - 0.5) * 0.7,
       y: 0.04 + Math.random() * 0.12,
-      z: 0.25 + Math.floor(index / 7) * 0.18 + Math.random() * 0.1,
+      z: 0.28 + (index % 9) * 0.12 + Math.random() * 0.1,
       roll: Math.random() * Math.PI,
-      scale: 0.45 + Math.random() * 1.2,
+      scale: 0.4 + Math.random() * 1.1,
+      spread: 0.4 + Math.random() * 1.3,
     }));
+    concreteFragmentSeeds.forEach((_, index) => {
+      concreteFragments.setColorAt(index, fragmentGrays[index % fragmentGrays.length]);
+    });
+    if (concreteFragments.instanceColor) concreteFragments.instanceColor.needsUpdate = true;
     root.add(concreteFragments);
     disposables.push(concreteFragmentGeometry, concreteFragmentMaterial);
 
@@ -383,6 +691,16 @@ export function WallDisasterScene({
       new THREE.Color(0x786850),
     ];
     let stoneIndex = 0;
+    const stoneSeeds: Array<{
+      basePos: THREE.Vector3;
+      baseRot: THREE.Euler;
+      baseScale: THREE.Vector3;
+      layer: number;
+      run: number;
+      drift: number;
+      delay: number;
+      scatterX: number;
+    }> = [];
     disposables.push(stoneGeometry, stoneMaterial);
 
     function addBasket({
@@ -471,14 +789,27 @@ export function WallDisasterScene({
           : z + (Math.random() - 0.5) * depth * 0.72;
         const sideOffset = sideBand && i % 4 === 0 ? (run === 0 ? -length * 0.42 : length * 0.42) : 0;
         const scale = 0.55 + Math.random() * 0.7;
-        matrix.compose(
-          new THREE.Vector3(sx + sideOffset, sy, sz),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random(), Math.random(), Math.random())),
-          new THREE.Vector3(scale, scale * (0.7 + Math.random() * 0.5), scale),
+        const basePos = new THREE.Vector3(sx + sideOffset, sy, sz);
+        const baseRot = new THREE.Euler(
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
         );
+        const baseScale = new THREE.Vector3(scale, scale * (0.7 + Math.random() * 0.5), scale);
+        matrix.compose(basePos, new THREE.Quaternion().setFromEuler(baseRot), baseScale);
         stones.setMatrixAt(stoneIndex, matrix);
         // Per-instance natural stone color
         stones.setColorAt(stoneIndex, stoneColors[Math.floor(Math.random() * stoneColors.length)]);
+        stoneSeeds.push({
+          basePos,
+          baseRot,
+          baseScale,
+          layer,
+          run,
+          drift: 0.3 + Math.random() * 1.0,
+          delay: Math.random(),
+          scatterX: (Math.random() - 0.5) * 1.6,
+        });
         stoneIndex += 1;
       }
 
@@ -826,11 +1157,15 @@ export function WallDisasterScene({
 
     // Drainage flood surface (failure animation)
     const drainageFloodMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x38bdf8,
+      color: 0x2a6f96,
       transparent: true,
       opacity: 0,
-      roughness: 0.08,
-      transmission: 0.08,
+      roughness: 0.07,
+      transmission: 0.3,
+      ior: 1.33,
+      thickness: 1.0,
+      attenuationColor: new THREE.Color(0x0a3a55),
+      attenuationDistance: 1.0,
       depthWrite: false,
     });
     const drainageFloodGeometry = new THREE.BoxGeometry(wallLength + 1.8, 0.08, 2.15);
@@ -1109,6 +1444,17 @@ export function WallDisasterScene({
     scene.add(trappedWater);
     disposables.push(waterGeometry);
 
+    // Flowing wave surface that sits on top of the trapped seepage water.
+    const seepageSurface = createWaterSurface(wallLength + 0.4, 1.1, 48, 8);
+    seepageSurface.mesh.position.set(0, finishedGradeY, backZ - 0.6);
+    scene.add(seepageSurface.mesh);
+
+    // Flowing wave surface for the front floodwater during failure.
+    const floodSurface = createWaterSurface(wallLength + 1.8, 2.15, 60, 14);
+    floodSurface.mesh.position.set(0.35, 0.04, frontZ + 0.85);
+    floodSurface.mesh.visible = false;
+    scene.add(floodSurface.mesh);
+
     // ── Rain particle system ──────────────────────────────────────────────────
     const rainCount = 1100;
     const rainPositions = new Float32Array(rainCount * 3);
@@ -1129,20 +1475,6 @@ export function WallDisasterScene({
     const rainPoints = new THREE.Points(rainGeometry, rainMaterial);
     scene.add(rainPoints);
     disposables.push(rainGeometry, rainMaterial);
-
-    // ── Hydrostatic pressure visualiser ──────────────────────────────────────
-    const pressureMaterial = new THREE.MeshBasicMaterial({
-      color: 0xf97316,
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-    });
-    const pressureGeometry = new THREE.PlaneGeometry(wallLength, 1.4);
-    const pressurePlane = new THREE.Mesh(pressureGeometry, pressureMaterial);
-    pressurePlane.position.set(0, finishedGradeY + 0.7, backZ - 0.05);
-    pressurePlane.rotation.x = -0.06;
-    scene.add(pressurePlane);
-    disposables.push(pressureGeometry, pressureMaterial);
 
     // ── Sliding force arrow ───────────────────────────────────────────────────
     const slideArrowMaterial = new THREE.MeshStandardMaterial({
@@ -1220,6 +1552,10 @@ export function WallDisasterScene({
 
     applyView(viewModeRef.current);
 
+    let stonesCollapsed = false;
+    const stoneQuat = new THREE.Quaternion();
+    const stoneEuler = new THREE.Euler();
+
     function animate(timestamp?: number) {
       timer.update(timestamp);
       const elapsed = timer.getElapsed();
@@ -1271,9 +1607,14 @@ export function WallDisasterScene({
       trappedWater.material.opacity = 0.12 + hydroPressure * 0.33;
       trappedWater.rotation.z = active ? Math.sin(elapsed * 1.7) * rainPower * 0.006 : 0;
 
-      pressureMaterial.opacity = Math.max(0.03, hydroPressure * 0.38 + stressPower * 0.08);
-      pressurePlane.scale.y = 0.5 + hydroPressure * 0.5;
-      pressurePlane.position.y = 0.55 + hydroPressure * 0.35;
+      // Wave surface rides on the trapped water's top, churning more under load.
+      const seepageTop = trappedWater.position.y + 0.35 * trappedWater.scale.y * 0.7;
+      seepageSurface.mesh.position.y = seepageTop;
+      seepageSurface.mesh.visible = rainPower > 0.08;
+      (seepageSurface.mesh.material as THREE.MeshPhysicalMaterial).opacity = 0.45 + hydroPressure * 0.4;
+      if (active && seepageSurface.mesh.visible) {
+        updateWaterSurface(seepageSurface, elapsed, 0.018 + hydroPressure * 0.05, rainPower);
+      }
 
       pipeFlow.scale.x = 1 + Math.sin(elapsed * 5) * 0.015;
       pipeFlow.visible = rainPower > 0.14;
@@ -1314,6 +1655,21 @@ export function WallDisasterScene({
       drainageFlood.position.y = 0.025 + failurePower * 0.075 + Math.sin(elapsed * 1.6) * failurePower * 0.008;
       drainageFlood.material.opacity = Math.min(0.58, failurePower * 0.66);
       drainageFlood.visible = failurePower > 0.02;
+
+      // Turbulent flowing surface on top of the rising floodwater.
+      const floodTop = drainageFlood.position.y + 0.04 + failurePower * 0.18;
+      floodSurface.mesh.position.y = floodTop;
+      // local X = world width, local Y = world depth, local Z = wave height.
+      floodSurface.mesh.scale.set(
+        drainageFlood.scale.x,
+        Math.max(0.001, drainageFlood.scale.z),
+        1,
+      );
+      floodSurface.mesh.visible = failurePower > 0.04;
+      (floodSurface.mesh.material as THREE.MeshPhysicalMaterial).opacity = Math.min(0.85, 0.4 + failurePower * 0.5);
+      if (active && floodSurface.mesh.visible) {
+        updateWaterSurface(floodSurface, elapsed, 0.02 + failurePower * 0.09, 0.6 + failurePower);
+      }
 
       floodRipples.forEach((ripple, index) => {
         const cycle = active ? (elapsed * 0.5 + ripple.phase) % 1 : ripple.phase;
@@ -1448,6 +1804,50 @@ export function WallDisasterScene({
         basket.group.rotation.z = seismic * 0.06 + failurePower * (runFactor - 0.5) * 0.36 + topple * (runFactor - 0.45) * 0.55;
       });
 
+      // Stone fill collapses out of the failing baskets so the rubble looks real
+      // instead of a wall-shaped cloud of stones hanging in mid-air.
+      if (failurePower > 0.001) {
+        stoneSeeds.forEach((seed, index) => {
+          const runFactor = seed.run / 13;
+          const layerFactor = seed.layer / 4;
+          const centerRupture = runFactor > 0.08 && runFactor < 0.82;
+          const toeRupture = runFactor > 0.18 && runFactor < 0.72;
+          const inZone =
+            (seed.layer >= 2 && centerRupture) ||
+            (seed.layer === 1 && toeRupture && failurePower > 0.72);
+          const collapse = inZone ? failurePower : failurePower * 0.12;
+          const fall = collapse * (0.55 + layerFactor * 1.5 + seed.delay * 0.4);
+          const forward = collapse * (0.45 + seed.drift + layerFactor * 0.7);
+          const wobble = active ? Math.sin(elapsed * 3 + seed.delay * 6) * collapse * 0.03 : 0;
+          const groundY = 0.05 + (index % 11) * 0.01;
+          const y = Math.max(groundY, seed.basePos.y - fall + wobble);
+          stoneEuler.set(
+            seed.baseRot.x + collapse * (3 + seed.delay * 4),
+            seed.baseRot.y + collapse * 2,
+            seed.baseRot.z + collapse * (2 + seed.delay * 3),
+          );
+          matrix.compose(
+            new THREE.Vector3(
+              seed.basePos.x + collapse * seed.scatterX,
+              y,
+              seed.basePos.z + forward,
+            ),
+            stoneQuat.setFromEuler(stoneEuler),
+            seed.baseScale,
+          );
+          stones.setMatrixAt(index, matrix);
+        });
+        stones.instanceMatrix.needsUpdate = true;
+        stonesCollapsed = true;
+      } else if (stonesCollapsed) {
+        stoneSeeds.forEach((seed, index) => {
+          matrix.compose(seed.basePos, stoneQuat.setFromEuler(seed.baseRot), seed.baseScale);
+          stones.setMatrixAt(index, matrix);
+        });
+        stones.instanceMatrix.needsUpdate = true;
+        stonesCollapsed = false;
+      }
+
       spillSeeds.forEach((seed, index) => {
         const tumble = active ? Math.sin(elapsed * 1.8 + seed.roll) * 0.03 : 0;
         const spread = failurePower * failurePower;
@@ -1491,28 +1891,37 @@ export function WallDisasterScene({
         child.position.z = failurePower * (0.12 + (index % 4) * 0.035);
       });
 
-      concretePanels.forEach((panel, index) => {
-        const collapse = Math.min(1, Math.max(0, (rainPower - 0.82) * 5 + drainageBlockage * 0.25));
-        panel.rotation.x = collapse * (0.62 + index * 0.26);
-        panel.rotation.y = collapse * (index % 2 === 0 ? -0.18 : 0.12);
-        panel.rotation.z = collapse * (0.16 + index * 0.09);
-        panel.position.z = collapse * (0.42 + index * 0.22);
-        panel.position.x = collapse * (index - 1) * 0.08;
-        panel.position.y = index * 0.44 - collapse * (0.06 + index * 0.16);
-        panel.visible = rainPower > 0.72;
+      const concreteCollapse = Math.min(1, Math.max(0, (rainPower - 0.82) * 5 + drainageBlockage * 0.25));
+      const concreteVisible = rainPower > 0.72;
+      concreteBlocks.forEach((block) => {
+        block.mesh.visible = concreteVisible;
+        // Blocks let go progressively from the top, then settle into the pile.
+        const c = THREE.MathUtils.clamp((concreteCollapse - block.delay) / (1 - block.delay), 0, 1);
+        const ease = c * c * (3 - 2 * c);
+        const jitter = active && c > 0.02 && c < 0.98 ? Math.sin(elapsed * 7 + block.delay * 10) * 0.01 : 0;
+        block.mesh.position.set(
+          THREE.MathUtils.lerp(block.base.x, block.heap.x, ease),
+          THREE.MathUtils.lerp(block.base.y, block.heap.y, ease) + jitter,
+          THREE.MathUtils.lerp(block.base.z, block.heap.z, ease),
+        );
+        block.mesh.rotation.set(block.tumble.x * ease, block.tumble.y * ease, block.tumble.z * ease);
       });
 
       concreteFragmentSeeds.forEach((seed, index) => {
-        const collapse = Math.min(1, Math.max(0, (rainPower - 0.82) * 5 + drainageBlockage * 0.25));
-        const scatter = collapse * collapse;
+        const scatter = concreteCollapse * concreteCollapse;
+        const settle = THREE.MathUtils.smoothstep(concreteCollapse, 0.3, 1);
+        const tumbleRoll = active ? elapsed * (0.6 + seed.spread) * (1 - settle) : 0;
+        const y = Math.max(0.05 + (index % 6) * 0.012, seed.y + scatter * 0.05);
         matrix.compose(
           new THREE.Vector3(
-            seed.x + scatter * (index % 5) * 0.08,
-            seed.y + scatter * 0.04,
-            seed.z + scatter * (0.2 + Math.floor(index / 8) * 0.11),
+            seed.x + scatter * seed.spread * (index % 2 === 0 ? -1 : 1) * 0.5,
+            y,
+            seed.z + scatter * (0.4 + seed.spread),
           ),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(seed.roll + collapse * 1.2, seed.roll * 0.4, seed.roll * 0.8)),
-          new THREE.Vector3(seed.scale * collapse, seed.scale * collapse * 0.7, seed.scale * collapse),
+          new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(seed.roll + tumbleRoll, seed.roll * 0.5 + tumbleRoll * 0.6, seed.roll * 0.8),
+          ),
+          new THREE.Vector3(seed.scale * scatter, seed.scale * scatter, seed.scale * scatter),
         );
         concreteFragments.setMatrixAt(index, matrix);
       });
