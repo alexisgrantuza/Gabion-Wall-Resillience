@@ -115,11 +115,11 @@ const severityClass: Record<Scenario["severity"], string> = {
 };
 
 const modelLayers = [
-  { label: "Gabion mesh", value: "PVC-coated wire baskets", color: "bg-[#3a6432]" },
+  { label: "Gabion mesh", value: "Galvanized steel / rebar wire baskets", color: "bg-[#7c8990]" },
   { label: "Stone fill", value: "Varied quarry rock inside cages", color: "bg-stone-500" },
   { label: "Granular backfill", value: "Free-draining material behind wall", color: "bg-slate-300" },
   { label: "Geotextile cloth", value: "Filter layer against retained soil", color: "bg-slate-950" },
-  { label: "Native soil", value: "Existing retained earth mass", color: "bg-[#7c5828]" },
+  { label: "Native soil", value: "Silty soil — site-tested retained earth", color: "bg-[#a09282]" },
   { label: "Aggregate base", value: "Compacted foundation course", color: "bg-neutral-400" },
   { label: "Drainage pipe", value: "150 mm perforated HDPE outlet", color: "bg-orange-600" },
   { label: "Floodwater", value: "Seepage, overflow, and ponding", color: "bg-cyan-400" },
@@ -171,18 +171,66 @@ export function WallResilienceSimulator() {
   const [viewMode, setViewMode] = useState<ViewMode>("perspective");
   const [zoomCommand, setZoomCommand] = useState(0);
 
+  // ── Geotechnical constants (client-tested values) ──────────────────────────
+  const PHI_DEG = 30;                   // internal friction angle (°)
+  const GAMMA_SOIL = 17.85;             // soil unit weight (kN/m³)
+  const GAMMA_STONE = 16.70;            // gabion stone unit weight (kN/m³)
+  const WALL_H = 4.2;                   // exposed wall height (m)
+  const WALL_BASE_B = 3.0;              // base width of widest course (m)
+  const WALL_DEPTH = 30;                // wall length (m)
+  const DELTA_DEG = PHI_DEG * (2 / 3);  // wall-soil friction (2/3 φ rule)
+
+  // Rankine active earth pressure coefficient: Ka = tan²(45 - φ/2)
+  const Ka = useMemo(() => {
+    const phi = (PHI_DEG * Math.PI) / 180;
+    return Math.tan(Math.PI / 4 - phi / 2) ** 2;
+  }, []);
+
   const stress = useMemo(() => {
-    const waterPressure = rain * (0.16 + drainage * 0.0038);
-    const drainagePenalty = drainage * 0.28;
-    const seismicLoad = Math.max(0, quake - 2) * 7.6;
-    return Math.min(100, Math.round(waterPressure + drainagePenalty + seismicLoad));
-  }, [drainage, quake, rain]);
+    // Saturated soil unit weight rises with drainage blockage
+    const saturationFactor = 1 + (drainage / 100) * 0.18;
+    const effectiveGamma = GAMMA_SOIL * saturationFactor;
+
+    // Rankine active thrust (triangular distribution): Pa = ½ Ka γ H²
+    const rainFactor = rain / 100;
+    const effectiveH = WALL_H * (0.72 + rainFactor * 0.28);  // water table raises effective H
+    const Pa = 0.5 * Ka * effectiveGamma * effectiveH ** 2;
+
+    // Gabion wall self-weight (trapezoidal cross-section approximation)
+    const avgDepth = (WALL_BASE_B + 1.0) / 2;
+    const Wwall = GAMMA_STONE * avgDepth * WALL_H;
+
+    // Sliding resistance: Fr = (Wwall + vertical component of Pa) × tan(δ)
+    const delta = (DELTA_DEG * Math.PI) / 180;
+    const Fr = (Wwall + Pa * Math.sin(delta)) * Math.tan(delta);
+
+    // Seismic pseudo-static horizontal force (Mononobe-Okabe simplified)
+    const kh = Math.max(0, quake - 2) * 0.022;
+    const seismicForce = kh * Wwall;
+
+    // Demand / capacity ratio → 0–100 index
+    const demand = Pa * Math.cos(delta) + seismicForce;
+    const ratio = demand / Math.max(0.01, Fr);
+    return Math.min(100, Math.round(ratio * 52));
+  }, [Ka, drainage, quake, rain]);
 
   const failureLevel = useMemo(() => {
+    // Failure progression tied to exceedance of design thresholds
     const rainOverCarina = Math.max(0, rain - 112) / 38;
     const blockedOutlet = Math.max(0, drainage - 72) / 28;
     const seismicOverload = Math.max(0, quake - 7.2) / 1.3;
-    return Math.min(1, rainOverCarina * 0.62 + blockedOutlet * 0.28 + seismicOverload * 0.32);
+
+    // Soil density amplifies failure speed: denser soil → more inertial force
+    const densityAmplifier = GAMMA_SOIL / 17.0;
+    // Lower friction angle = less resistance → fails sooner
+    const frictionReduction = (35 - PHI_DEG) / 10;
+
+    return Math.min(
+      1,
+      (rainOverCarina * 0.62 + blockedOutlet * 0.28 + seismicOverload * 0.32)
+        * densityAmplifier
+        * (1 + frictionReduction * 0.15),
+    );
   }, [drainage, quake, rain]);
 
   const status = getStatus(stress);
@@ -214,7 +262,9 @@ export function WallResilienceSimulator() {
           <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">1 buried layer</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">6° inclined</span>
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">Permeable face</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">4.2 m exposed</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">Silty soil</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">Steel / rebar mesh</span>
           </div>
         </div>
         <div className="relative">
@@ -486,11 +536,14 @@ export function WallResilienceSimulator() {
           {[
             ["Actual length", "30 m"],
             ["PDF record", "28 m"],
-            ["Exposed height", "4 m"],
+            ["Exposed height", "4.2 m"],
             ["Embedded layer", "1 box"],
             ["Inclination", "6°"],
-            ["Layers", "3m / 2m / 2m / 1m"],
+            ["Layers", "3m / 2m / 2m / 1.2m"],
             ["Drain pipe", "150 mm"],
+            ["Friction angle", "30°"],
+            ["Soil density", "17.85 kN/m³"],
+            ["Stone density", "16.70 kN/m³"],
             ["Carina 24h", "323.9 mm"],
             ["Storm total", "618.8 mm"],
           ].map(([label, value]) => (

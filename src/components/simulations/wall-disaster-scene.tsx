@@ -39,15 +39,15 @@ const backZ = -1.5 * METER;
 const frontZ = backZ + 3 * METER;
 const finishedGradeY = baseTop + buriedLayerDrop;
 const wallBaseY = baseTop - buriedLayerDrop;
-// PVC-coated green gabion wire — realistic dark green
-const WIRE_GREEN = 0x3a6432;
-const WIRE_GREEN_ACCENT = 0x4a7a42;
+// Galvanized rebar/steel gabion wire
+const WIRE_STEEL = 0x7c8990;
+const WIRE_STEEL_LIGHT = 0x9aabb4;
 const layerSpecs = [
-  { layer: 0, depthM: 3, color: WIRE_GREEN, accent: WIRE_GREEN, buried: true },
-  { layer: 1, depthM: 3, color: WIRE_GREEN, accent: WIRE_GREEN_ACCENT, buried: false },
-  { layer: 2, depthM: 2, color: WIRE_GREEN, accent: WIRE_GREEN, buried: false },
-  { layer: 3, depthM: 2, color: WIRE_GREEN, accent: WIRE_GREEN, buried: false },
-  { layer: 4, depthM: 1, color: WIRE_GREEN, accent: WIRE_GREEN, buried: false },
+  { layer: 0, depthM: 3, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL, buried: true },
+  { layer: 1, depthM: 3, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL_LIGHT, buried: false },
+  { layer: 2, depthM: 2, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
+  { layer: 3, depthM: 2, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
+  { layer: 4, depthM: 1, heightM: 1.2, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
 ];
 
 export function WallDisasterScene({
@@ -165,85 +165,79 @@ export function WallDisasterScene({
       return texture;
     }
 
-    // Realistic cut-earth: dark organic topsoil grading into lighter subsoil,
-    // wavy strata bands, fine grain speckle, and embedded pebbles.
+    // Silty soil — lighter tan-gray, fine-grained, smooth strata (site-tested)
     function drawSoil(ctx: CanvasRenderingContext2D, s: number, topBand: boolean) {
       const gradient = ctx.createLinearGradient(0, 0, 0, s);
       if (topBand) {
-        gradient.addColorStop(0, "#34230f");
-        gradient.addColorStop(0.14, "#422c14");
-        gradient.addColorStop(0.45, "#5f3f1e");
-        gradient.addColorStop(1, "#7a5526");
+        gradient.addColorStop(0, "#7a7060");
+        gradient.addColorStop(0.2, "#8c8272");
+        gradient.addColorStop(0.55, "#9e9282");
+        gradient.addColorStop(1, "#b0a492");
       } else {
-        gradient.addColorStop(0, "#5a3c1c");
-        gradient.addColorStop(0.5, "#6e4a22");
-        gradient.addColorStop(1, "#825b29");
+        gradient.addColorStop(0, "#8e8878");
+        gradient.addColorStop(0.5, "#9e9888");
+        gradient.addColorStop(1, "#b2ac9c");
       }
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, s, s);
 
-      // Wavy horizontal strata
-      for (let i = 0; i < 9; i += 1) {
-        const y = (i + 0.5) * (s / 9);
-        const tone = i % 2 === 0 ? "rgba(40,26,12,0.34)" : "rgba(150,110,64,0.20)";
+      // Tight wavy strata — silty soil has finer, more horizontal banding
+      for (let i = 0; i < 11; i += 1) {
+        const y = (i + 0.5) * (s / 11);
+        const tone = i % 2 === 0 ? "rgba(60,56,50,0.28)" : "rgba(200,192,178,0.22)";
         ctx.strokeStyle = tone;
-        ctx.lineWidth = 2 + Math.random() * 6;
+        ctx.lineWidth = 1.5 + Math.random() * 4;
         ctx.beginPath();
         ctx.moveTo(0, y);
-        for (let x = 0; x <= s; x += 24) {
-          ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 7 + (Math.random() - 0.5) * 5);
+        for (let x = 0; x <= s; x += 20) {
+          ctx.lineTo(x, y + Math.sin(x * 0.025 + i * 0.8) * 5 + (Math.random() - 0.5) * 3);
         }
         ctx.stroke();
       }
 
-      // Fine grain speckle
-      for (let i = 0; i < 2600; i += 1) {
+      // Dense fine silt speckle (smaller and lighter than organic soil)
+      for (let i = 0; i < 3200; i += 1) {
         const x = Math.random() * s;
         const y = Math.random() * s;
-        const dark = Math.random() > 0.45;
+        const dark = Math.random() > 0.5;
         ctx.fillStyle = dark
-          ? `rgba(28,18,8,${0.18 + Math.random() * 0.32})`
-          : `rgba(176,140,92,${0.12 + Math.random() * 0.26})`;
-        const r = 0.6 + Math.random() * 1.8;
+          ? `rgba(72,68,62,${0.12 + Math.random() * 0.22})`
+          : `rgba(218,210,198,${0.10 + Math.random() * 0.20})`;
+        const r = 0.4 + Math.random() * 1.2;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Embedded pebbles with a soft highlight
-      for (let i = 0; i < 54; i += 1) {
+      // Sub-rounded quartz grains characteristic of silty soil
+      for (let i = 0; i < 80; i += 1) {
         const x = Math.random() * s;
         const y = Math.random() * s;
-        const rx = 3 + Math.random() * 9;
-        const ry = rx * (0.6 + Math.random() * 0.5);
-        const g = 110 + Math.floor(Math.random() * 60);
-        ctx.fillStyle = `rgb(${g},${g - 8},${g - 20})`;
+        const rx = 1.5 + Math.random() * 5;
+        const ry = rx * (0.7 + Math.random() * 0.4);
+        const base = 170 + Math.floor(Math.random() * 50);
+        ctx.fillStyle = `rgb(${base},${base - 4},${base - 10})`;
         ctx.beginPath();
         ctx.ellipse(x, y, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fillStyle = "rgba(255,255,255,0.22)";
         ctx.beginPath();
-        ctx.ellipse(x - rx * 0.3, y - ry * 0.3, rx * 0.35, ry * 0.3, 0, 0, Math.PI * 2);
+        ctx.ellipse(x - rx * 0.28, y - ry * 0.28, rx * 0.3, ry * 0.25, 0, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // A few thin roots near the organic top
-      if (topBand) {
-        ctx.strokeStyle = "rgba(30,20,10,0.4)";
-        ctx.lineWidth = 1.4;
-        for (let i = 0; i < 7; i += 1) {
-          const x = Math.random() * s;
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          let cy = 0;
-          let cx = x;
-          while (cy < s * 0.4) {
-            cy += 16;
-            cx += (Math.random() - 0.5) * 26;
-            ctx.lineTo(cx, cy);
-          }
-          ctx.stroke();
-        }
+      // Subtle moisture patches (silty soil holds water unevenly)
+      for (let i = 0; i < 18; i += 1) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const r = 12 + Math.random() * 30;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, "rgba(80,90,80,0.18)");
+        grad.addColorStop(1, "rgba(80,90,80,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * 0.6, Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
@@ -381,8 +375,8 @@ export function WallDisasterScene({
     const topsoilMaterial = new THREE.MeshStandardMaterial({
       map: soilTexture,
       bumpMap: soilTexture,
-      bumpScale: 0.04,
-      color: 0x9a7848,
+      bumpScale: 0.025,
+      color: 0xa89e8e,
       roughness: 0.98,
     });
     const aggregateMaterial = new THREE.MeshStandardMaterial({ color: 0x8c8878, roughness: 0.95 });
@@ -455,8 +449,8 @@ export function WallDisasterScene({
     const excavationMaterial = new THREE.MeshStandardMaterial({
       map: subsoilTexture,
       bumpMap: subsoilTexture,
-      bumpScale: 0.03,
-      color: 0x8a6234,
+      bumpScale: 0.02,
+      color: 0xb0a898,
       roughness: 0.97,
       transparent: true,
       opacity: 0.78,
@@ -488,11 +482,11 @@ export function WallDisasterScene({
     const elevatedSoilMaterial = new THREE.MeshStandardMaterial({
       map: soilTexture,
       bumpMap: soilTexture,
-      bumpScale: 0.05,
-      color: 0x8f6634,
+      bumpScale: 0.03,
+      color: 0xa89e8c,
       roughness: 0.97,
     });
-    const soilHeight = finishedGradeY + 4 * METER + 0.15;
+    const soilHeight = finishedGradeY + 4.2 * METER + 0.15;
     const elevatedSoilGeometry = new THREE.BoxGeometry(wallLength + 0.8, soilHeight, 1.8);
     const elevatedSoil = new THREE.Mesh(elevatedSoilGeometry, elevatedSoilMaterial);
     elevatedSoil.position.set(0, soilHeight / 2, backfillRearZ - 0.9);
@@ -503,9 +497,9 @@ export function WallDisasterScene({
 
     // Soil strata and loose clods make the retained earth read as excavated ground.
     const soilStrataMaterial = new THREE.LineBasicMaterial({
-      color: 0x3f2b16,
+      color: 0x5a5650,
       transparent: true,
-      opacity: 0.42,
+      opacity: 0.35,
     });
     for (let i = 0; i < 9; i += 1) {
       const y = 0.16 + i * (soilHeight / 10) + Math.sin(i) * 0.025;
@@ -524,7 +518,7 @@ export function WallDisasterScene({
     disposables.push(soilStrataMaterial);
 
     const soilClodGeometry = new THREE.IcosahedronGeometry(0.055, 0);
-    const soilClodMaterial = new THREE.MeshStandardMaterial({ color: 0x4a3018, roughness: 0.98 });
+    const soilClodMaterial = new THREE.MeshStandardMaterial({ color: 0x7e7868, roughness: 0.98 });
     const soilClodCount = 220;
     const soilClods = new THREE.InstancedMesh(soilClodGeometry, soilClodMaterial, soilClodCount);
     soilClods.castShadow = true;
@@ -727,13 +721,14 @@ export function WallDisasterScene({
       const group = new THREE.Group();
       group.position.set(x, y, z);
 
-      // Wire cage face (PVC-coated green — realistic gabion appearance)
+      // Wire cage face — galvanized steel / rebar mesh
       const basketMaterial = new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.46,
-        metalness: 0.20,
+        roughness: 0.52,
+        metalness: 0.72,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.75,
+        envMapIntensity: 1.2,
       });
       const basketGeometry = new THREE.BoxGeometry(length, height, depth);
       const basket = new THREE.Mesh(basketGeometry, basketMaterial);
@@ -745,7 +740,7 @@ export function WallDisasterScene({
       const edgeGeometry = new THREE.EdgesGeometry(basketGeometry);
       const meshLines = new THREE.LineSegments(
         edgeGeometry,
-        new THREE.LineBasicMaterial({ color: 0x1a2e18, transparent: true, opacity: 0.75 }),
+        new THREE.LineBasicMaterial({ color: 0x2e3640, transparent: true, opacity: 0.75 }),
       );
       group.add(meshLines);
 
@@ -757,7 +752,7 @@ export function WallDisasterScene({
         ]);
         const rail = new THREE.Line(
           railGeometry,
-          new THREE.LineBasicMaterial({ color: 0x1a2e18, transparent: true, opacity: 0.38 }),
+          new THREE.LineBasicMaterial({ color: 0x2e3640, transparent: true, opacity: 0.38 }),
         );
         group.add(rail);
         disposables.push(railGeometry);
@@ -771,7 +766,7 @@ export function WallDisasterScene({
         ]);
         const cross = new THREE.Line(
           crossGeometry,
-          new THREE.LineBasicMaterial({ color: 0x1a2e18, transparent: true, opacity: 0.30 }),
+          new THREE.LineBasicMaterial({ color: 0x2e3640, transparent: true, opacity: 0.30 }),
         );
         group.add(cross);
         disposables.push(crossGeometry);
@@ -824,7 +819,7 @@ export function WallDisasterScene({
           ]);
           const line = new THREE.Line(
             lineGeometry,
-            new THREE.LineBasicMaterial({ color: 0x1a2e18, transparent: true, opacity: 0.40 }),
+            new THREE.LineBasicMaterial({ color: 0x2e3640, transparent: true, opacity: 0.40 }),
           );
           group.add(line);
           disposables.push(lineGeometry);
@@ -838,7 +833,7 @@ export function WallDisasterScene({
           ]);
           const line = new THREE.Line(
             lineGeometry,
-            new THREE.LineBasicMaterial({ color: 0x1a2e18, transparent: true, opacity: 0.34 }),
+            new THREE.LineBasicMaterial({ color: 0x2e3640, transparent: true, opacity: 0.34 }),
           );
           group.add(line);
           disposables.push(lineGeometry);
@@ -850,13 +845,23 @@ export function WallDisasterScene({
       disposables.push(basketGeometry, basketMaterial, edgeGeometry);
     }
 
+    // Precompute cumulative Y bottom for each above-grade layer (supports variable heightM)
+    let _cumH = 0;
+    const layerBottomY: Record<number, number> = {};
+    layerSpecs.forEach((spec) => {
+      if (!spec.buried) {
+        layerBottomY[spec.layer] = _cumH;
+        _cumH += spec.heightM * METER;
+      }
+    });
+
     // Build all gabion courses
     layerSpecs.forEach((spec) => {
       const depth = spec.depthM * METER;
-      const height = layerHeight;
+      const height = spec.heightM * METER * 0.94;
       const y = spec.buried
         ? wallBaseY + 0.5 * METER
-        : finishedGradeY + (spec.layer - 0.5) * METER;
+        : finishedGradeY + layerBottomY[spec.layer] + height / 2;
       const z = frontZ - depth / 2;
       const moduleCount = 14;
       const moduleLength = wallLength / moduleCount;
@@ -919,7 +924,7 @@ export function WallDisasterScene({
 
     // Torn wire strands (failure animation)
     const tornWireMaterial = new THREE.LineBasicMaterial({
-      color: 0x1a2e18,
+      color: 0x2e3640,
       transparent: true,
       opacity: 0,
     });
@@ -1338,8 +1343,8 @@ export function WallDisasterScene({
       const profileGeometry = new THREE.BoxGeometry(0.18, height, depth);
       const profileMaterial = new THREE.MeshStandardMaterial({
         color: spec.layer === 1 ? spec.accent : spec.color,
-        roughness: 0.48,
-        metalness: 0.18,
+        roughness: 0.52,
+        metalness: 0.68,
         transparent: true,
         opacity: 0.80,
       });
@@ -1352,7 +1357,7 @@ export function WallDisasterScene({
       const edgeGeometry = new THREE.EdgesGeometry(profileGeometry);
       const edges = new THREE.LineSegments(
         edgeGeometry,
-        new THREE.LineBasicMaterial({ color: 0x1a2e18, transparent: true, opacity: 0.72 }),
+        new THREE.LineBasicMaterial({ color: 0x2e3640, transparent: true, opacity: 0.72 }),
       );
       edges.position.copy(profile.position);
       sideProfile.add(edges);
@@ -1413,7 +1418,7 @@ export function WallDisasterScene({
 
     // Gabion wall label (above the wall top)
     const labelWall = makeLabel("Gabion Retaining Wall", "PVC-coated wire mesh · stone fill");
-    labelWall.position.set(0, finishedGradeY + 4.6 * METER + 0.32, frontZ);
+    labelWall.position.set(0, finishedGradeY + 4.8 * METER + 0.32, frontZ);
     scene.add(labelWall);
 
     // Granular backfill label
