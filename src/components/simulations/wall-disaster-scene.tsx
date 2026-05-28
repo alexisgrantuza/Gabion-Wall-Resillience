@@ -31,14 +31,13 @@ type Disposable = {
 
 const METER = 0.35;
 const wallLength = 30 * METER;
-const layerHeight = 1 * METER * 0.94;
 const baseTop = 0.16;
 const buriedLayerDrop = 0.68 * METER;
 const wallInclination = THREE.MathUtils.degToRad(-6);
 const backZ = -1.5 * METER;
 const frontZ = backZ + 3 * METER;
 const finishedGradeY = baseTop + buriedLayerDrop;
-const wallBaseY = baseTop - buriedLayerDrop;
+    const wallBaseY = baseTop - buriedLayerDrop;
 // Galvanized rebar/steel gabion wire
 const WIRE_STEEL = 0x7c8990;
 const WIRE_STEEL_LIGHT = 0x9aabb4;
@@ -47,8 +46,18 @@ const layerSpecs = [
   { layer: 1, depthM: 3, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL_LIGHT, buried: false },
   { layer: 2, depthM: 2, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
   { layer: 3, depthM: 2, heightM: 1.0, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
-  { layer: 4, depthM: 1, heightM: 1.2, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
+  { layer: 4, depthM: 1, heightM: 2.0, color: WIRE_STEEL, accent: WIRE_STEEL, buried: false },
 ];
+
+let cumulativeExposedHeightM = 0;
+const layerBottomMeters: Record<number, number> = {};
+layerSpecs.forEach((spec) => {
+  if (!spec.buried) {
+    layerBottomMeters[spec.layer] = cumulativeExposedHeightM;
+    cumulativeExposedHeightM += spec.heightM;
+  }
+});
+const exposedWallHeightM = cumulativeExposedHeightM;
 
 export function WallDisasterScene({
   rain,
@@ -469,9 +478,10 @@ export function WallDisasterScene({
       if (spec.buried) return;
       const layerBackZ = frontZ - spec.depthM * METER;
       const fillDepth = layerBackZ - backfillRearZ;
-      const fillGeometry = new THREE.BoxGeometry(wallLength + 0.2, layerHeight + 0.03, fillDepth);
+      const fillHeight = spec.heightM * METER;
+      const fillGeometry = new THREE.BoxGeometry(wallLength + 0.2, fillHeight + 0.03, fillDepth);
       const fill = new THREE.Mesh(fillGeometry, backfillMaterial);
-      fill.position.set(0, finishedGradeY + (spec.layer - 0.5) * METER, (layerBackZ + backfillRearZ) / 2);
+      fill.position.set(0, finishedGradeY + layerBottomMeters[spec.layer] * METER + fillHeight / 2, (layerBackZ + backfillRearZ) / 2);
       fill.receiveShadow = true;
       fill.renderOrder = 1;
       scene.add(fill);
@@ -486,7 +496,7 @@ export function WallDisasterScene({
       color: 0xa89e8c,
       roughness: 0.97,
     });
-    const soilHeight = finishedGradeY + 4.2 * METER + 0.15;
+    const soilHeight = finishedGradeY + exposedWallHeightM * METER + 0.15;
     const elevatedSoilGeometry = new THREE.BoxGeometry(wallLength + 0.8, soilHeight, 1.8);
     const elevatedSoil = new THREE.Mesh(elevatedSoilGeometry, elevatedSoilMaterial);
     elevatedSoil.position.set(0, soilHeight / 2, backfillRearZ - 0.9);
@@ -845,23 +855,13 @@ export function WallDisasterScene({
       disposables.push(basketGeometry, basketMaterial, edgeGeometry);
     }
 
-    // Precompute cumulative Y bottom for each above-grade layer (supports variable heightM)
-    let _cumH = 0;
-    const layerBottomY: Record<number, number> = {};
-    layerSpecs.forEach((spec) => {
-      if (!spec.buried) {
-        layerBottomY[spec.layer] = _cumH;
-        _cumH += spec.heightM * METER;
-      }
-    });
-
     // Build all gabion courses
     layerSpecs.forEach((spec) => {
       const depth = spec.depthM * METER;
       const height = spec.heightM * METER * 0.94;
       const y = spec.buried
         ? wallBaseY + 0.5 * METER
-        : finishedGradeY + layerBottomY[spec.layer] + height / 2;
+        : finishedGradeY + layerBottomMeters[spec.layer] * METER + height / 2;
       const z = frontZ - depth / 2;
       const moduleCount = 14;
       const moduleLength = wallLength / moduleCount;
@@ -1336,9 +1336,9 @@ export function WallDisasterScene({
     layerSpecs.forEach((spec) => {
       if (spec.buried) return;
 
-      const height = layerHeight;
+      const height = spec.heightM * METER * 0.94;
       const depth = spec.depthM * METER;
-      const y = finishedGradeY + (spec.layer - 0.5) * METER;
+      const y = finishedGradeY + layerBottomMeters[spec.layer] * METER + height / 2;
       const z = frontZ - depth / 2;
       const profileGeometry = new THREE.BoxGeometry(0.18, height, depth);
       const profileMaterial = new THREE.MeshStandardMaterial({
@@ -1417,8 +1417,8 @@ export function WallDisasterScene({
     }
 
     // Gabion wall label (above the wall top)
-    const labelWall = makeLabel("Gabion Retaining Wall", "PVC-coated wire mesh · stone fill");
-    labelWall.position.set(0, finishedGradeY + 4.8 * METER + 0.32, frontZ);
+    const labelWall = makeLabel("Gabion Retaining Wall", "Galvanized steel / rebar gabion box · stone fill");
+    labelWall.position.set(0, finishedGradeY + 5.4 * METER + 0.32, frontZ);
     scene.add(labelWall);
 
     // Granular backfill label

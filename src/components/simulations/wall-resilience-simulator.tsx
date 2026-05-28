@@ -132,6 +132,14 @@ const inspectionFocus = [
   ["Failure mode", "Beyond Carina adds pipe damage, flooding, torn mesh, falling stones, and progressive basket separation."],
 ];
 
+// ── Geotechnical constants (client-tested values) ──────────────────────────
+const PHI_DEG = 30;                   // internal friction angle (°)
+const GAMMA_SOIL = 17.85;             // soil unit weight (kN/m³)
+const GAMMA_STONE = 16.70;            // gabion stone unit weight (kN/m³)
+const WALL_H = 5.0;                   // exposed wall height (m)
+const WALL_BASE_B = 3.0;              // base width of widest course (m)
+const DELTA_DEG = PHI_DEG * (2 / 3);  // wall-soil friction (2/3 φ rule)
+
 function getStatus(stress: number) {
   if (stress < 46) {
     return {
@@ -170,15 +178,6 @@ export function WallResilienceSimulator() {
   const [playing, setPlaying] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("perspective");
   const [zoomCommand, setZoomCommand] = useState(0);
-
-  // ── Geotechnical constants (client-tested values) ──────────────────────────
-  const PHI_DEG = 30;                   // internal friction angle (°)
-  const GAMMA_SOIL = 17.85;             // soil unit weight (kN/m³)
-  const GAMMA_STONE = 16.70;            // gabion stone unit weight (kN/m³)
-  const WALL_H = 4.2;                   // exposed wall height (m)
-  const WALL_BASE_B = 3.0;              // base width of widest course (m)
-  const WALL_DEPTH = 30;                // wall length (m)
-  const DELTA_DEG = PHI_DEG * (2 / 3);  // wall-soil friction (2/3 φ rule)
 
   // Rankine active earth pressure coefficient: Ka = tan²(45 - φ/2)
   const Ka = useMemo(() => {
@@ -262,7 +261,7 @@ export function WallResilienceSimulator() {
           <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">1 buried layer</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">6° inclined</span>
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">4.2 m exposed</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">5 m exposed</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">Silty soil</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1">Steel / rebar mesh</span>
           </div>
@@ -536,10 +535,10 @@ export function WallResilienceSimulator() {
           {[
             ["Actual length", "30 m"],
             ["PDF record", "28 m"],
-            ["Exposed height", "4.2 m"],
+            ["Exposed height", "5 m"],
             ["Embedded layer", "1 box"],
             ["Inclination", "6°"],
-            ["Layers", "3m / 2m / 2m / 1.2m"],
+            ["Layers", "3m / 2m / 2m / 2m"],
             ["Drain pipe", "150 mm"],
             ["Friction angle", "30°"],
             ["Soil density", "17.85 kN/m³"],
